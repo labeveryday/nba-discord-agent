@@ -1,0 +1,32 @@
+services:
+  nba-discord-agent:
+    build: .
+    container_name: nba-discord-agent
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - SQLITE_DB_PATH=/app/data/agent.db
+      - TZ=America/New_York
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Persistent storage for scheduler DB and game state
+    volumes:
+      - agent-data:/app/data
+
+    # Resource limits
+    mem_limit: 768m
+    cpus: 1.0
+
+    # Security hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  agent-data:
