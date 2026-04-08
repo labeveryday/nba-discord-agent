@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="NBA Discord Agent">
+  <title>NBA Discord Agent</title>
+  <!-- Discord-style chat bubble -->
+  <path d="M40 40 H216 A24 24 0 0 1 240 64 V168 A24 24 0 0 1 216 192 H120 L72 232 V192 H40 A24 24 0 0 1 16 168 V64 A24 24 0 0 1 40 40 Z"
+        fill="#5865F2"/>
+  <!-- Basketball -->
+  <g transform="translate(128 116)">
+    <circle r="60" fill="#ED7600"/>
+    <!-- Seam lines -->
+    <g fill="none" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round">
+      <line x1="-60" y1="0" x2="60" y2="0"/>
+      <line x1="0" y1="-60" x2="0" y2="60"/>
+      <path d="M-52 -30 Q0 -10 52 -30"/>
+      <path d="M-52 30 Q0 10 52 30"/>
+    </g>
+    <!-- Highlight -->
+    <ellipse cx="-22" cy="-26" rx="12" ry="8" fill="#ffffff" opacity="0.18"/>
+  </g>
+</svg>

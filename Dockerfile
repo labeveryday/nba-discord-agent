@@ -13,9 +13,9 @@ RUN groupadd -r agent && useradd -r -g agent -d /app -s /usr/sbin/nologin agent
 
 COPY --from=builder /install /usr/local
 WORKDIR /app
-COPY main.py heartbeat.py ./
+COPY src/ ./src/
 RUN mkdir -p /app/data && chown agent:agent /app/data
 
 USER agent
 
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["python", "src/agent.py"]
