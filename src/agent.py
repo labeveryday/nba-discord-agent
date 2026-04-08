@@ -26,14 +26,13 @@ import time
 
 import discord
 from dotenv import load_dotenv
-
 from mcp import StdioServerParameters, stdio_client
 from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.tools.mcp import MCPClient
 from strands_tools import current_time, rss
 
-from alerts import alert_startup, alert_agent_error
+from alerts import alert_startup
 from config import build_system_prompt
 from heartbeat import heartbeat_loop
 from hooks import NBAToolHooks
@@ -68,9 +67,7 @@ def build_mcp_client() -> MCPClient:
         args = [*extra_args]
 
     return MCPClient(
-        lambda: stdio_client(
-            StdioServerParameters(command=command, args=args)
-        ),
+        lambda: stdio_client(StdioServerParameters(command=command, args=args)),
         prefix="nba",
     )
 
@@ -169,7 +166,8 @@ def main() -> None:
                 return
 
             if content.startswith("$status"):
-                from heartbeat import _already_posted, _today_key, _yesterday_key, _week_key
+                from heartbeat import _already_posted, _today_key, _week_key, _yesterday_key
+
                 uptime_s = time.monotonic() - bot_start_time
                 hours, rem = divmod(int(uptime_s), 3600)
                 mins, _ = divmod(rem, 60)
@@ -185,6 +183,7 @@ def main() -> None:
                     ollama_host = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
                     try:
                         from urllib.request import urlopen as _urlopen
+
                         with _urlopen(f"{ollama_host}/api/version", timeout=3):
                             backend_status = "connected"
                     except Exception:
@@ -253,7 +252,7 @@ def main() -> None:
             # Extract question
             question = content
             if is_nba_command:
-                question = content[len("$nba"):].strip()
+                question = content[len("$nba") :].strip()
             elif is_mention:
                 question = content.replace(f"<@{client.user.id}>", "").replace(f"<@!{client.user.id}>", "")
                 question = question.strip(" :,-\n\t")
@@ -265,25 +264,24 @@ def main() -> None:
                     await message.channel.send("Send a question after `$nba` or after the @mention.")
                 return
 
-            async with message.channel.typing():
-                async with ollama_semaphore:
-                    try:
-                        result = await asyncio.to_thread(agent, question)
-                        response_text = str(result).strip()
-                    except Exception as e:
-                        if is_max_tokens_exception(e):
-                            brief = (
-                                f"{question}\n\n"
-                                "Respond VERY briefly (<= 8 bullet points). "
-                                "If this is still too much, ask ONE clarifying question."
-                            )
-                            try:
-                                result = await asyncio.to_thread(agent, brief)
-                                response_text = str(result).strip()
-                            except Exception:
-                                response_text = "Something went wrong. Please try again."
-                        else:
+            async with message.channel.typing(), ollama_semaphore:
+                try:
+                    result = await asyncio.to_thread(agent, question)
+                    response_text = str(result).strip()
+                except Exception as e:
+                    if is_max_tokens_exception(e):
+                        brief = (
+                            f"{question}\n\n"
+                            "Respond VERY briefly (<= 8 bullet points). "
+                            "If this is still too much, ask ONE clarifying question."
+                        )
+                        try:
+                            result = await asyncio.to_thread(agent, brief)
+                            response_text = str(result).strip()
+                        except Exception:
                             response_text = "Something went wrong. Please try again."
+                    else:
+                        response_text = "Something went wrong. Please try again."
 
             # Reply to the original message (not DMs — they don't need it)
             first = True

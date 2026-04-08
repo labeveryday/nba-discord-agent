@@ -11,8 +11,8 @@ import json
 import logging
 import os
 import time
-from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 log = logging.getLogger("alerts")
 
@@ -30,29 +30,35 @@ def send_alert(title: str, message: str, level: str = "info") -> None:
         return
 
     colors = {
-        "info": 3447003,      # blue
-        "success": 3066993,   # green
+        "info": 3447003,  # blue
+        "success": 3066993,  # green
         "warning": 15105570,  # orange
-        "error": 15158332,    # red
+        "error": 15158332,  # red
     }
 
     payload = {
         "username": "NBA Agent Alerts",
-        "embeds": [{
-            "title": title,
-            "description": message,
-            "color": colors.get(level, 3447003),
-            "footer": {"text": "NBA Discord Agent"},
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }]
+        "embeds": [
+            {
+                "title": title,
+                "description": message,
+                "color": colors.get(level, 3447003),
+                "footer": {"text": "NBA Discord Agent"},
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        ],
     }
 
     try:
         data = json.dumps(payload).encode()
-        req = Request(url, data=data, headers={
-            "Content-Type": "application/json",
-            "User-Agent": "nba-discord-agent/1.0",
-        })
+        req = Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "nba-discord-agent/1.0",
+            },
+        )
         with urlopen(req, timeout=10):
             pass
     except (URLError, OSError) as e:

@@ -18,9 +18,8 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
-from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 try:
@@ -30,7 +29,7 @@ except ImportError:
 
 import discord
 
-from alerts import send_alert, alert_heartbeat_actions, alert_heartbeat_error, alert_ollama_check
+from alerts import alert_heartbeat_actions, alert_heartbeat_error, alert_ollama_check
 
 log = logging.getLogger("heartbeat")
 
@@ -53,6 +52,7 @@ GAME_HOURS_END = 2  # wraps midnight
 # ---------------------------------------------------------------------------
 # SQLite — context manager for all connections
 # ---------------------------------------------------------------------------
+
 
 def _db_path() -> str:
     return os.environ.get("SQLITE_DB_PATH", "/app/data/agent.db")
@@ -98,9 +98,7 @@ def _init_db() -> None:
 
 def _already_posted(job_type: str, key: str) -> bool:
     with _db() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM heartbeat_log WHERE job_key = ?", (f"{job_type}:{key}",)
-        ).fetchone()
+        row = conn.execute("SELECT 1 FROM heartbeat_log WHERE job_key = ?", (f"{job_type}:{key}",)).fetchone()
     return row is not None
 
 
@@ -113,7 +111,7 @@ def _mark_posted(job_type: str, key: str) -> None:
         conn.commit()
 
 
-def _get_game_state(game_id: str) -> Optional[str]:
+def _get_game_state(game_id: str) -> str | None:
     with _db() as conn:
         row = conn.execute("SELECT status FROM game_state WHERE game_id = ?", (game_id,)).fetchone()
     return row[0] if row else None
@@ -137,7 +135,7 @@ def _save_thread(game_id: str, thread_id: int) -> None:
         conn.commit()
 
 
-def _get_thread_id(game_id: str) -> Optional[int]:
+def _get_thread_id(game_id: str) -> int | None:
     with _db() as conn:
         row = conn.execute("SELECT thread_id FROM game_threads WHERE game_id = ?", (game_id,)).fetchone()
     return row[0] if row else None
@@ -154,6 +152,7 @@ def _prune_stale_data(max_age_days: int = 7) -> None:
 # ---------------------------------------------------------------------------
 # Time helpers
 # ---------------------------------------------------------------------------
+
 
 def _now_et() -> datetime:
     return datetime.now(ET)
@@ -184,6 +183,7 @@ def _is_game_hours() -> bool:
 # NBA API — direct calls, no LLM needed
 # ---------------------------------------------------------------------------
 
+
 def _fetch_scoreboard() -> list[dict]:
     try:
         req = Request(NBA_SCOREBOARD_URL, headers={"User-Agent": "nba-discord-agent/1.0"})
@@ -201,19 +201,21 @@ def _parse_games(games: list[dict]) -> list[dict]:
         away = g.get("awayTeam", {})
         home = g.get("homeTeam", {})
         status_text = str(g.get("gameStatusText", "")).strip()
-        parsed.append({
-            "game_id": g.get("gameId", ""),
-            "away_tri": away.get("teamTricode", "???"),
-            "away_name": away.get("teamName", "Away"),
-            "away_score": away.get("score", 0),
-            "home_tri": home.get("teamTricode", "???"),
-            "home_name": home.get("teamName", "Home"),
-            "home_score": home.get("score", 0),
-            "status_text": status_text,
-            "is_final": "final" in status_text.lower(),
-            "game_status": g.get("gameStatus", 0),
-            "game_et": g.get("gameEt", ""),
-        })
+        parsed.append(
+            {
+                "game_id": g.get("gameId", ""),
+                "away_tri": away.get("teamTricode", "???"),
+                "away_name": away.get("teamName", "Away"),
+                "away_score": away.get("score", 0),
+                "home_tri": home.get("teamTricode", "???"),
+                "home_name": home.get("teamName", "Home"),
+                "home_score": home.get("score", 0),
+                "status_text": status_text,
+                "is_final": "final" in status_text.lower(),
+                "game_status": g.get("gameStatus", 0),
+                "game_et": g.get("gameEt", ""),
+            }
+        )
     return parsed
 
 
@@ -231,13 +233,15 @@ def _fetch_nba_headlines(limit: int = 5) -> list[dict]:
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:limit]:
-                headlines.append({
-                    "title": entry.get("title", ""),
-                    "summary": entry.get("summary", "")[:200],
-                    "source": "ESPN",
-                    "link": entry.get("link", ""),
-                    "published": entry.get("published", ""),
-                })
+                headlines.append(
+                    {
+                        "title": entry.get("title", ""),
+                        "summary": entry.get("summary", "")[:200],
+                        "source": "ESPN",
+                        "link": entry.get("link", ""),
+                        "published": entry.get("published", ""),
+                    }
+                )
         except Exception as e:
             log.warning("Failed to fetch RSS from %s: %s", url, e)
     return headlines[:limit]
@@ -269,12 +273,13 @@ def _format_games_for_context(games: list[dict]) -> str:
 # Discord helpers
 # ---------------------------------------------------------------------------
 
-def _heartbeat_channel_id() -> Optional[int]:
+
+def _heartbeat_channel_id() -> int | None:
     val = os.environ.get("HEARTBEAT_CHANNEL_ID")
     return int(val) if val else None
 
 
-def _game_thread_channel_id() -> Optional[int]:
+def _game_thread_channel_id() -> int | None:
     val = os.environ.get("GAME_THREAD_CHANNEL_ID") or os.environ.get("HEARTBEAT_CHANNEL_ID")
     return int(val) if val else None
 
@@ -303,8 +308,10 @@ async def _send_chunked(channel, text: str) -> None:
 # Agent helper
 # ---------------------------------------------------------------------------
 
-async def _run_agent(agent, prompt: str, semaphore: asyncio.Semaphore,
-                     timeout: int = AGENT_TIMEOUT) -> Optional[str]:
+
+async def _run_agent(
+    agent, prompt: str, semaphore: asyncio.Semaphore, timeout: int = AGENT_TIMEOUT
+) -> str | None:
     """Run agent with timeout, yielding if interactive users are active."""
     if semaphore.locked():
         log.info("Semaphore busy (user being served), skipping")
@@ -312,10 +319,11 @@ async def _run_agent(agent, prompt: str, semaphore: asyncio.Semaphore,
     try:
         async with semaphore:
             result = await asyncio.wait_for(
-                asyncio.to_thread(agent, prompt), timeout=timeout,
+                asyncio.to_thread(agent, prompt),
+                timeout=timeout,
             )
             return str(result).strip()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.error("Agent timed out after %ds", timeout)
         return None
     except Exception as e:
@@ -326,6 +334,7 @@ async def _run_agent(agent, prompt: str, semaphore: asyncio.Semaphore,
 # ---------------------------------------------------------------------------
 # Context builder — pre-computes everything the reasoning agent needs
 # ---------------------------------------------------------------------------
+
 
 def _build_context(scoreboard_games: list[dict]) -> dict:
     """Build the full context dict the reasoning agent will receive."""
@@ -398,10 +407,7 @@ def _has_potential_work(ctx: dict) -> bool:
         return True
 
     # Rise and grind (4:15 AM - 5:00 AM)
-    if 4 <= ctx["hour"] < 5 and not ctx["grind_posted"]:
-        return True
-
-    return False
+    return 4 <= ctx["hour"] < 5 and not ctx["grind_posted"]
 
 
 def _format_context_for_agent(ctx: dict) -> str:
@@ -413,38 +419,37 @@ def _format_context_for_agent(ctx: dict) -> str:
     in_progress = [g for g in ctx["all_games"] if not g["is_final"] and g["game_status"] == 2]
     scheduled = [g for g in ctx["all_games"] if g["game_status"] == 1]
 
-    return f"""Current time: {ctx['now'].strftime('%I:%M %p ET, %A %B %-d, %Y')}
-Day of week: {ctx['weekday']} (weekday_num={ctx['weekday_num']}, 0=Monday)
-Game hours active: {ctx['is_game_hours']}
+    return f"""Current time: {ctx["now"].strftime("%I:%M %p ET, %A %B %-d, %Y")}
+Day of week: {ctx["weekday"]} (weekday_num={ctx["weekday_num"]}, 0=Monday)
+Game hours active: {ctx["is_game_hours"]}
 
-NBA scoreboard right now ({len(ctx['all_games'])} games):
+NBA scoreboard right now ({len(ctx["all_games"])} games):
   Final: {len(finals)} | In progress: {len(in_progress)} | Scheduled: {len(scheduled)}
 {all_games_text}
 
 NOTE: The NBA scoreboard may still show last night's results if today's games haven't started.
 If all games are Final and it's morning, these are LAST NIGHT'S results — use them for morning_recap.
 
-Games that JUST went Final (not yet highlighted via postgame_highlights): {len(ctx['new_finals'])}
-{new_final_text if ctx['new_finals'] else '  (none — all finals have been highlighted already)'}
+Games that JUST went Final (not yet highlighted via postgame_highlights): {len(ctx["new_finals"])}
+{new_final_text if ctx["new_finals"] else "  (none — all finals have been highlighted already)"}
 
 What has been posted:
-  morning_recap for {ctx['yesterday']}: {'DONE' if ctx['recap_posted'] else 'NOT DONE — needs posting if games are on the board'}
-  gameday_preview for {ctx['today']}: {'DONE' if ctx['preview_posted'] else 'NOT DONE'}
-  game_threads for {ctx['today']}: {'DONE' if ctx['threads_posted'] else 'NOT DONE'}
-  weekly_standings for week {ctx['week']}: {'DONE' if ctx['standings_posted'] else 'NOT DONE'}
-  rise_and_grind for {ctx['today']}: {'DONE' if ctx['grind_posted'] else 'NOT DONE'}
+  morning_recap for {ctx["yesterday"]}: {"DONE" if ctx["recap_posted"] else "NOT DONE — needs posting if games are on the board"}
+  gameday_preview for {ctx["today"]}: {"DONE" if ctx["preview_posted"] else "NOT DONE"}
+  game_threads for {ctx["today"]}: {"DONE" if ctx["threads_posted"] else "NOT DONE"}
+  weekly_standings for week {ctx["week"]}: {"DONE" if ctx["standings_posted"] else "NOT DONE"}
+  rise_and_grind for {ctx["today"]}: {"DONE" if ctx["grind_posted"] else "NOT DONE"}
 
 Top NBA headlines:
-{_format_headlines_for_context(ctx['headlines'])}"""
+{_format_headlines_for_context(ctx["headlines"])}"""
 
 
 # ---------------------------------------------------------------------------
 # Action executors — one per action type
 # ---------------------------------------------------------------------------
 
-async def _exec_morning_recap(
-    agent, client: discord.Client, semaphore: asyncio.Semaphore, ctx: dict
-) -> None:
+
+async def _exec_morning_recap(agent, client: discord.Client, semaphore: asyncio.Semaphore, ctx: dict) -> None:
     yesterday = ctx["yesterday"]
     channel = client.get_channel(_heartbeat_channel_id())
     if not channel:
@@ -494,9 +499,7 @@ async def _exec_gameday_preview(
     log.info("Posted game-day preview for %s", today)
 
 
-async def _exec_game_threads(
-    client: discord.Client, ctx: dict
-) -> None:
+async def _exec_game_threads(client: discord.Client, ctx: dict) -> None:
     today = ctx["today"]
     channel_id = _game_thread_channel_id()
     if not channel_id:
@@ -552,8 +555,11 @@ async def _exec_game_threads(
 
 
 async def _exec_postgame_highlights(
-    agent, client: discord.Client, semaphore: asyncio.Semaphore, ctx: dict,
-    game_ids: Optional[list[str]] = None,
+    agent,
+    client: discord.Client,
+    semaphore: asyncio.Semaphore,
+    ctx: dict,
+    game_ids: list[str] | None = None,
 ) -> None:
     channel_id = _heartbeat_channel_id()
     if not channel_id:
@@ -610,8 +616,11 @@ async def _exec_postgame_highlights(
 
 
 async def _exec_postgame_batch(
-    agent, client: discord.Client, semaphore: asyncio.Semaphore,
-    games: list[dict], channel_id: int,
+    agent,
+    client: discord.Client,
+    semaphore: asyncio.Semaphore,
+    games: list[dict],
+    channel_id: int,
 ) -> None:
     """Post a batched highlight for 2-3 games in one message."""
     game_lines = []
@@ -625,7 +634,7 @@ async def _exec_postgame_batch(
 
     prompt = (
         f"These games just finished:\n"
-        f"{''.join(chr(10) + l for l in game_lines)}\n\n"
+        f"{''.join(chr(10) + line for line in game_lines)}\n\n"
         f"For each game, use get_box_score to get the box score.\n"
         f"Then write a combined post-game update:\n"
         f"- For each game: **Winner score** - Loser score | top performer (pts/reb/ast)\n"
@@ -716,6 +725,7 @@ ACTION_MAP = {
 # Reasoning engine — the core of the heartbeat
 # ---------------------------------------------------------------------------
 
+
 def _load_heartbeat_md() -> str:
     """Load HEARTBEAT.md — looks next to this file, then /app/src, then CWD."""
     here = Path(__file__).parent / "HEARTBEAT.md"
@@ -727,9 +737,7 @@ def _load_heartbeat_md() -> str:
     return "Decide what actions to take based on the context provided."
 
 
-async def _reason_about_actions(
-    agent, semaphore: asyncio.Semaphore, ctx: dict
-) -> list[dict]:
+async def _reason_about_actions(agent, semaphore: asyncio.Semaphore, ctx: dict) -> list[dict]:
     """Ask the LLM to decide what actions to take.
 
     Returns a list of action dicts, e.g. [{"action": "morning_recap"}, ...]
@@ -785,6 +793,7 @@ async def _reason_about_actions(
 # ---------------------------------------------------------------------------
 # Main heartbeat loop
 # ---------------------------------------------------------------------------
+
 
 async def heartbeat_loop(
     make_agent,
@@ -842,9 +851,7 @@ async def heartbeat_loop(
                         await _exec_game_threads(client, ctx)
                     elif action_name == "postgame_highlights":
                         game_ids = action.get("game_ids")
-                        await _exec_postgame_highlights(
-                            proactive_agent, client, semaphore, ctx, game_ids
-                        )
+                        await _exec_postgame_highlights(proactive_agent, client, semaphore, ctx, game_ids)
                     else:
                         executor = ACTION_MAP[action_name]
                         await executor(proactive_agent, client, semaphore, ctx)

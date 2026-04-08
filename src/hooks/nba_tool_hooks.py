@@ -18,7 +18,7 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from strands.hooks.events import BeforeInvocationEvent, BeforeToolCallEvent, AfterToolCallEvent
+from strands.hooks.events import AfterToolCallEvent, BeforeInvocationEvent, BeforeToolCallEvent
 from strands.plugins import Plugin, hook
 
 log = logging.getLogger("hooks")
@@ -45,19 +45,19 @@ def _normalize_date(value: str) -> str | None:
     if not value:
         return None
 
-    if re.match(r'^\d{8}$', value):
+    if re.match(r"^\d{8}$", value):
         return value
 
     for fmt in (
-        "%Y-%m-%d",       # 2026-04-03
-        "%m/%d/%Y",       # 04/03/2026
-        "%m-%d-%Y",       # 04-03-2026
-        "%B %d, %Y",      # April 3, 2026
-        "%B %d %Y",       # April 3 2026
-        "%b %d, %Y",      # Apr 3, 2026
-        "%b %d %Y",       # Apr 3 2026
-        "%d %B %Y",       # 3 April 2026
-        "%d %b %Y",       # 3 Apr 2026
+        "%Y-%m-%d",  # 2026-04-03
+        "%m/%d/%Y",  # 04/03/2026
+        "%m-%d-%Y",  # 04-03-2026
+        "%B %d, %Y",  # April 3, 2026
+        "%B %d %Y",  # April 3 2026
+        "%b %d, %Y",  # Apr 3, 2026
+        "%b %d %Y",  # Apr 3 2026
+        "%d %B %Y",  # 3 April 2026
+        "%d %b %Y",  # 3 Apr 2026
     ):
         try:
             dt = datetime.strptime(value, fmt)
@@ -70,18 +70,18 @@ def _normalize_date(value: str) -> str | None:
 
 # Regex patterns to strip from tool results — ordered for correct removal
 # "| Team ID: 1610612765 | Logo: https://cdn.nba.com/..." (full pipe-delimited segment)
-_PIPE_ID_LOGO_RE = re.compile(r'\s*\|\s*(?:Team|Player|Game)\s*ID:\s*\d+\s*\|\s*Logo:\s*\S+', re.IGNORECASE)
+_PIPE_ID_LOGO_RE = re.compile(r"\s*\|\s*(?:Team|Player|Game)\s*ID:\s*\d+\s*\|\s*Logo:\s*\S+", re.IGNORECASE)
 # Standalone "| Team ID: xxx" or "| Logo: url" segments
-_PIPE_ID_RE = re.compile(r'\s*\|\s*(?:Team|Player|Game)\s*ID:\s*\d+', re.IGNORECASE)
-_PIPE_LOGO_RE = re.compile(r'\s*\|\s*Logo:\s*\S+', re.IGNORECASE)
+_PIPE_ID_RE = re.compile(r"\s*\|\s*(?:Team|Player|Game)\s*ID:\s*\d+", re.IGNORECASE)
+_PIPE_LOGO_RE = re.compile(r"\s*\|\s*Logo:\s*\S+", re.IGNORECASE)
 # NBA CDN URLs anywhere
-_LOGO_URL_RE = re.compile(r'https?://cdn\.nba\.com/\S+', re.IGNORECASE)
+_LOGO_URL_RE = re.compile(r"https?://cdn\.nba\.com/\S+", re.IGNORECASE)
 # Markdown images
-_MD_IMAGE_RE = re.compile(r'!\[.*?\]\(.*?\)')
+_MD_IMAGE_RE = re.compile(r"!\[.*?\]\(.*?\)")
 # "Logo: View" or "Logo: <url>" as standalone text
-_LOGO_REF_RE = re.compile(r'Logo:\s*\S+.*', re.IGNORECASE)
+_LOGO_REF_RE = re.compile(r"Logo:\s*\S+.*", re.IGNORECASE)
 # "Team ID: 1610612766" not in pipe context
-_LABELED_ID_RE = re.compile(r'(?:Team|Player|Game)\s*(?:ID|Id|id)\s*[:=]\s*\d{7,}', re.IGNORECASE)
+_LABELED_ID_RE = re.compile(r"(?:Team|Player|Game)\s*(?:ID|Id|id)\s*[:=]\s*\d{7,}", re.IGNORECASE)
 
 
 class NBAToolHooks(Plugin):
@@ -135,7 +135,7 @@ class NBAToolHooks(Plugin):
         if not raw_date or not isinstance(raw_date, str):
             return
 
-        if re.match(r'^\d{8}$', raw_date.strip()):
+        if re.match(r"^\d{8}$", raw_date.strip()):
             return
 
         normalized = _normalize_date(raw_date)
@@ -212,8 +212,8 @@ class NBAToolHooks(Plugin):
             cleaned = _MD_IMAGE_RE.sub("", cleaned)
             cleaned = _LOGO_REF_RE.sub("", cleaned)
             cleaned = _LABELED_ID_RE.sub("", cleaned)
-            cleaned = re.sub(r'\s*\|\s*$', '', cleaned, flags=re.MULTILINE)
-            cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+            cleaned = re.sub(r"\s*\|\s*$", "", cleaned, flags=re.MULTILINE)
+            cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
 
             if cleaned != text:
                 item["text"] = cleaned

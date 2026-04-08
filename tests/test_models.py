@@ -67,9 +67,11 @@ class TestBuildModelDispatch:
 
     def test_anthropic_requires_api_key(self, monkeypatch):
         monkeypatch.setenv("MODEL_PROVIDER", "anthropic")
-        with patch.object(models_mod, "anthropic_model", wraps=models_mod.anthropic_model):
-            with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
-                build_model()
+        with (
+            patch.object(models_mod, "anthropic_model", wraps=models_mod.anthropic_model),
+            pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"),
+        ):
+            build_model()
 
     def test_openai_requires_api_key(self, monkeypatch):
         monkeypatch.setenv("MODEL_PROVIDER", "openai")
@@ -83,6 +85,10 @@ class TestBuildModelDispatch:
         monkeypatch.setattr(
             models_mod,
             "PROVIDERS",
-            {"ollama": models_mod.ollama_model, "anthropic": models_mod.anthropic_model, "openai": models_mod.openai_model},
+            {
+                "ollama": models_mod.ollama_model,
+                "anthropic": models_mod.anthropic_model,
+                "openai": models_mod.openai_model,
+            },
         )
         assert build_model() is sentinel

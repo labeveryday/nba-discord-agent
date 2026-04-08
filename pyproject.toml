@@ -29,4 +29,6 @@ ignore = [
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs", "assets"]
-skips = ["B101"]  # assert_used — fine in tests
+# B101: assert_used — fine in tests
+# B310: urllib.urlopen — all URLs we open are hardcoded HTTPS or env-supplied (Ollama, Discord webhook, NBA stats)
+skips = ["B101", "B310"]

@@ -7,13 +7,12 @@ agent runtime.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Optional
 
 DISCORD_CHUNK_LIMIT = 1900
 DEFAULT_MAX_CONVERSATIONS = 100
 
 
-def truthy(value: Optional[str]) -> bool:
+def truthy(value: str | None) -> bool:
     """Parse the common boolean-ish strings used in env vars."""
     return (value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 

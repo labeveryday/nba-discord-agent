@@ -8,6 +8,7 @@ from config.prompts import build_system_prompt
 
 def _freeze(dt: datetime):
     """Patch datetime.now() inside config.prompts to return a fixed value."""
+
     class FakeDT(datetime):
         @classmethod
         def now(cls, tz=None):

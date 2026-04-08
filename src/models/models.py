@@ -65,10 +65,7 @@ def build_model():
     """Construct the model selected by MODEL_PROVIDER (default: ollama)."""
     provider = os.getenv("MODEL_PROVIDER", "ollama").strip().lower()
     if provider not in PROVIDERS:
-        raise ValueError(
-            f"Unknown MODEL_PROVIDER={provider!r}. "
-            f"Choose one of: {', '.join(PROVIDERS)}"
-        )
+        raise ValueError(f"Unknown MODEL_PROVIDER={provider!r}. Choose one of: {', '.join(PROVIDERS)}")
     return PROVIDERS[provider]()
 
 
