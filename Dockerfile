@@ -1,6 +1,9 @@
 FROM python:3.13-slim AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 COPY requirements.txt .
