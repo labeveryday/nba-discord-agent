@@ -66,8 +66,15 @@ def build_mcp_client() -> MCPClient:
         command = os.getenv("NBA_MCP_COMMAND", "nba-stats-mcp")
         args = [*extra_args]
 
+    # Pass proxy env to the MCP subprocess only (not to the main process),
+    # so NBA API requests go through the proxy but Anthropic calls don't.
+    env = None
+    nba_proxy = os.getenv("NBA_PROXY")
+    if nba_proxy:
+        env = {**os.environ, "HTTPS_PROXY": nba_proxy, "HTTP_PROXY": nba_proxy}
+
     return MCPClient(
-        lambda: stdio_client(StdioServerParameters(command=command, args=args)),
+        lambda: stdio_client(StdioServerParameters(command=command, args=args, env=env)),
         prefix="nba",
     )
 

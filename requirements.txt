@@ -4,6 +4,7 @@ strands-agents[ollama,anthropic,openai]>=1.23
 strands-agents-tools>=0.2.19
 mcp>=1.0
 nba-stats-mcp>=0.3.0
+httpx[socks]
 strands-pack>=0.1
 feedparser>=6.0
 html2text>=2024.2
