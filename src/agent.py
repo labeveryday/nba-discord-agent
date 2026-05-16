@@ -30,7 +30,7 @@ from mcp import StdioServerParameters, stdio_client
 from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.tools.mcp import MCPClient
-from strands_tools import current_time, rss
+from strands_tools import current_time, rss, mem0_memory
 
 from alerts import alert_startup
 from config import build_system_prompt
@@ -110,7 +110,7 @@ def main() -> None:
         def make_agent() -> Agent:
             return Agent(
                 model=model,
-                tools=tools + [current_time, rss],
+                tools=tools + [current_time, rss, mem0_memory],
                 system_prompt=build_system_prompt(),
                 conversation_manager=conversation_manager,
                 plugins=[nba_hooks],

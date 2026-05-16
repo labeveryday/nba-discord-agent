@@ -8,3 +8,4 @@ httpx[socks]
 strands-pack>=0.1
 feedparser>=6.0
 html2text>=2024.2
+strands-agents-tools[mem0_memory]
