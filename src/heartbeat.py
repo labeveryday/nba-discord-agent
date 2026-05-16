@@ -186,7 +186,11 @@ def _is_game_hours() -> bool:
 
 def _fetch_scoreboard() -> list[dict]:
     try:
-        req = Request(NBA_SCOREBOARD_URL, headers={"User-Agent": "nba-discord-agent/1.0"})
+        req = Request(NBA_SCOREBOARD_URL, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Referer": "https://www.nba.com/",
+            "Origin": "https://www.nba.com",
+        })
         with urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
         return data.get("scoreboard", {}).get("games", [])
