@@ -1,0 +1,119 @@
+#cloud-config
+
+# ---------------------------------------------------------------------------
+# OS hardening + Docker install for NBA Discord Agent
+#
+# Based on: github.com/labeveryday/akamai-work-stuff/terraform-examples/secure-linode
+# Added: Docker CE + Compose plugin, deploy user in docker group
+# ---------------------------------------------------------------------------
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - fail2ban
+  - ufw
+  - unattended-upgrades
+  - apt-listchanges
+  - ca-certificates
+  - curl
+  - gnupg
+
+users:
+  - name: ${ssh_user}
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+
+write_files:
+  # SSH hardening
+  - path: /etc/ssh/sshd_config.d/99-hardened.conf
+    permissions: "0600"
+    content: |
+      AllowUsers ${ssh_user}
+      PasswordAuthentication no
+      PermitEmptyPasswords no
+      KbdInteractiveAuthentication no
+      AuthenticationMethods publickey
+      PermitRootLogin no
+      Port ${ssh_port}
+      MaxAuthTries 3
+      LoginGraceTime 30
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      X11Forwarding no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      PermitTunnel no
+      DebianBanner no
+
+  # fail2ban
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled   = true
+      port      = ${ssh_port}
+      filter    = sshd
+      maxretry  = 3
+      bantime   = 86400
+      findtime  = 600
+
+  # Automatic security updates
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+runcmd:
+  # ---- SSH key setup ----
+  - |
+    if [ ! -f /root/.ssh/authorized_keys ]; then
+      echo "FATAL: /root/.ssh/authorized_keys not found. Aborting." >> /var/log/cloud-init-hardening.log
+      exit 1
+    fi
+  - mkdir -p /home/${ssh_user}/.ssh
+  - cp /root/.ssh/authorized_keys /home/${ssh_user}/.ssh/authorized_keys
+  - chown -R ${ssh_user}:${ssh_user} /home/${ssh_user}/.ssh
+  - chmod 700 /home/${ssh_user}/.ssh
+  - chmod 600 /home/${ssh_user}/.ssh/authorized_keys
+
+  # ---- Lock root ----
+  - passwd -l root
+
+  # ---- UFW (defense-in-depth behind cloud firewall) ----
+  - ufw default deny incoming
+  - ufw default deny outgoing
+%{ for ip in allowed_ips_bare ~}
+  - ufw allow from ${ip} to any port ${ssh_port} proto tcp
+%{ endfor ~}
+  - ufw allow out 53
+  - ufw allow out 123/udp
+  - ufw allow out 80/tcp
+  - ufw allow out 443/tcp
+  - ufw logging medium
+  - ufw --force enable
+
+  # ---- fail2ban ----
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # ---- Install Docker CE + Compose plugin ----
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update -qq
+  - apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - usermod -aG docker ${ssh_user}
+  - systemctl enable docker
+
+  # ---- Restart SSH to apply hardened config ----
+  - systemctl restart sshd
+
+  # ---- Clean up root SSH keys ----
+  - rm -f /root/.ssh/authorized_keys

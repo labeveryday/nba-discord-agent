@@ -1,0 +1,23 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars — it contains secrets.
+#
+# Alternative: set secrets as environment variables:
+#   export TF_VAR_linode_token="your-token-here"
+#   export TF_VAR_root_pass="a-strong-password"
+
+linode_token = ""
+root_pass    = ""    # Required by Linode but password auth is disabled via cloud-init
+
+authorized_keys = [
+  "ssh-ed25519 AAAA... you@machine",
+]
+
+# Optional overrides (defaults shown):
+# Your current IP is always included automatically.
+# Add extra IPs here (e.g. work computer):
+# allowed_ips   = ["203.0.113.50/32"]
+# region        = "us-east"
+# instance_type = "g6-nanode-1"     # 2GB $12/mo — enough for Anthropic backend
+# label         = "nba-discord-agent"
+# ssh_user      = "deploy"
+# ssh_port      = 22

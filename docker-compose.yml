@@ -14,6 +14,7 @@ services:
     # Persistent storage for scheduler DB and game state
     volumes:
       - agent-data:/app/data
+      - mem0-data:/app/.mem0
 
     # Resource limits
     mem_limit: 768m
@@ -30,3 +31,4 @@ services:
 
 volumes:
   agent-data:
+  mem0-data:
